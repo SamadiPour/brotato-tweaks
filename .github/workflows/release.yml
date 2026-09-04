@@ -1,0 +1,104 @@
+name: Release
+
+# Manual only: pick the ref in the Actions tab, run it, and the mod zip that
+# tools/build.sh produces is published as a GitHub release.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release. Leave empty to use version_number from manifest.json.'
+        required: false
+        type: string
+      prerelease:
+        description: 'Mark the release as a pre-release'
+        required: false
+        type: boolean
+        default: false
+      draft:
+        description: 'Create the release as a draft instead of publishing it'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve the version
+        id: version
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          manifest='root/mods-unpacked/Brotato-Tweaks/manifest.json'
+          manifest_version="$(jq -r '.version_number' "$manifest")"
+
+          version="${INPUT_VERSION:-$manifest_version}"
+          if [ -z "$version" ] || [ "$version" = 'null' ]; then
+            echo "could not determine a version" >&2
+            exit 1
+          fi
+
+          # A release built from a ref whose manifest says something else would ship a zip
+          # named after one version and tagged with another, so refuse that outright.
+          if [ "$version" != "$manifest_version" ]; then
+            echo "requested version $version does not match manifest.json ($manifest_version)" >&2
+            exit 1
+          fi
+
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+
+      - name: Check the tag is free
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "release $TAG already exists - bump version_number in manifest.json first" >&2
+            exit 1
+          fi
+          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+            echo "tag $TAG already exists" >&2
+            exit 1
+          fi
+
+      - name: Build the mod zip
+        run: tools/build.sh
+
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.version }}
+          PRERELEASE: ${{ inputs.prerelease }}
+          DRAFT: ${{ inputs.draft }}
+        run: |
+          set -euo pipefail
+          args=(
+            "$TAG"
+            "dist/Brotato-Tweaks-$VERSION.zip"
+            --target "$GITHUB_SHA"
+            --title "Tweaks $VERSION"
+            --generate-notes
+          )
+          if [ "$PRERELEASE" = 'true' ]; then args+=(--prerelease); fi
+          if [ "$DRAFT" = 'true' ]; then args+=(--draft); fi
+          gh release create "${args[@]}"
+
+      - name: Summarise
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          echo "Released [$TAG](${{ github.server_url }}/${{ github.repository }}/releases/tag/$TAG)" \
+            >> "$GITHUB_STEP_SUMMARY"
