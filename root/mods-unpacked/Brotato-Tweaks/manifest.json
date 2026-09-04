@@ -1,0 +1,273 @@
+{
+	"name": "Tweaks",
+	"namespace": "Brotato",
+	"version_number": "0.6.0",
+	"description": "Optional gameplay tweaks, each one a switch you flip: an enemy count multiplier that lifts the wave's enemy cap and its spawn rate, dials for enemy health, damage and speed, a horde every wave, a rescheduled elite timetable, bonus elites and bosses in every wave, longer or shorter waves, a Death Guard that lets you restart the wave you died on, All Cursed, which curses every item and weapon you are offered and can curse enemies on spawn, Recurse, which re-rolls the curse on a cursed item you keep locked in the shop, two switches that lift the game's per-item cap on limited and unique items, a ban allowance you set yourself that can cover weapons too, a Recycle button on the items you already own, a fixed weapon limit, and two endless fixes that stop your Harvesting decaying and keep the Piggy Bank paying past wave 20. Everything is off until you turn it on.",
+	"website_url": "https://github.com/SamadiPour/brotato-tweaks",
+	"dependencies": [],
+	"incompatibilities": [],
+	"authors": ["Amir"],
+	"compatible_game_version": ["1.1.15"],
+	"extra": {
+		"godot": {
+			"id": "Brotato-Tweaks",
+			"authors": ["Amir"],
+			"compatible_game_version": ["1.1.15"],
+			"compatible_mod_loader_version": ["6.3.0"],
+			"incompatibilities": [],
+			"optional_dependencies": [],
+			"load_before": [],
+			"config_schema": {
+				"title": "Tweaks",
+				"description": "Every tweak is off by default. Turning one on changes the run, so scores made with it are not comparable to vanilla ones.",
+				"type": "object",
+				"properties": {
+					"enemies_enabled": {
+						"title": "Enemy multiplier",
+						"description": "Multiply how many enemies each wave spawns.",
+						"type": "boolean",
+						"default": false
+					},
+					"enemies_multiplier": {
+						"title": "Enemy multiplier amount",
+						"description": "How many times the vanilla number of enemies to spawn. 1 is vanilla. High values cost frame rate.",
+						"type": "number",
+						"default": 2,
+						"minimum": 1,
+						"maximum": 10,
+						"multipleOf": 0.5
+					},
+					"enemies_raise_cap": {
+						"title": "Lift the enemy cap",
+						"description": "The game deletes live enemies once a wave passes its own cap. Scale that cap by the same multiplier so the extra enemies actually stay on screen. Turn this off to keep the vanilla cap as a safety valve.",
+						"type": "boolean",
+						"default": true
+					},
+					"enemies_fast_spawn": {
+						"title": "Speed up spawning",
+						"description": "The game releases only 40 queued enemies a second, so past about 4x the extra ones sit in a queue instead of arriving and the lifted cap never fills. Release them by the same multiplier. This is the setting that costs frame rate - turn it off to keep vanilla's spawn pace.",
+						"type": "boolean",
+						"default": true
+					},
+					"enemy_stats_enabled": {
+						"title": "Enemy stat dials",
+						"description": "Scale enemy health, damage and speed. Pair a low health multiplier with a high enemy multiplier for a horde that is still playable.",
+						"type": "boolean",
+						"default": false
+					},
+					"enemy_health_multiplier": {
+						"title": "Enemy health",
+						"description": "1 is vanilla. Never drops below 1 HP.",
+						"type": "number",
+						"default": 1,
+						"minimum": 0.1,
+						"maximum": 5,
+						"multipleOf": 0.1
+					},
+					"enemy_damage_multiplier": {
+						"title": "Enemy damage",
+						"description": "1 is vanilla. Never drops below 1 damage - the game floors every armoured hit there, so enemies cannot be made harmless.",
+						"type": "number",
+						"default": 1,
+						"minimum": 0.1,
+						"maximum": 5,
+						"multipleOf": 0.1
+					},
+					"enemy_speed_multiplier": {
+						"title": "Enemy speed",
+						"description": "1 is vanilla. 0 leaves enemies standing still.",
+						"type": "number",
+						"default": 1,
+						"minimum": 0,
+						"maximum": 5,
+						"multipleOf": 0.1
+					},
+					"horde_every_wave_enabled": {
+						"title": "Horde every wave",
+						"description": "Add the zone's horde groups to every wave, on top of what the wave already spawns. Waves the game already scheduled as hordes are left alone.",
+						"type": "boolean",
+						"default": false
+					},
+					"elites_enabled": {
+						"title": "Elite schedule",
+						"description": "Change when elites and hordes arrive. How many you get is still the game's call, and still depends on difficulty.",
+						"type": "boolean",
+						"default": false
+					},
+					"elites_first_wave": {
+						"title": "First elite wave",
+						"description": "The wave the first elite lands on. 11 matches vanilla, which rolls it across waves 11-12.",
+						"type": "number",
+						"default": 11,
+						"minimum": 1,
+						"maximum": 50,
+						"multipleOf": 1
+					},
+					"elites_horde_chance": {
+						"title": "Horde chance (%)",
+						"description": "Chance each scheduled elite is a horde instead. 40 is vanilla. Some characters override this themselves.",
+						"type": "number",
+						"default": 40,
+						"minimum": 0,
+						"maximum": 100,
+						"multipleOf": 5
+					},
+					"bonus_elites_enabled": {
+						"title": "Bonus elites",
+						"description": "Add elites to every wave, on top of everything that wave already spawns. No chance and no schedule: they are there from wave 1, in every wave, including the boss wave. Independent of the elite schedule above - vanilla's own elites still arrive as well.",
+						"type": "boolean",
+						"default": false
+					},
+					"bonus_elites_count": {
+						"title": "Bonus elites per wave",
+						"description": "How many extra elites each wave gets. Picked from the zone's own elites, all of them before any repeats.",
+						"type": "number",
+						"default": 1,
+						"minimum": 1,
+						"maximum": 10,
+						"multipleOf": 1
+					},
+					"bonus_bosses_enabled": {
+						"title": "Bonus bosses",
+						"description": "Add bosses to every wave, on top of everything that wave already spawns, from wave 1. These are the zone's real bosses at full health, so one of them is a wave on its own.",
+						"type": "boolean",
+						"default": false
+					},
+					"bonus_bosses_count": {
+						"title": "Bonus bosses per wave",
+						"description": "How many extra bosses each wave gets. Picked from the zone's own bosses, all of them before any repeats. On the last wave they have to die before the wave will end early, the same as the boss you were already fighting.",
+						"type": "number",
+						"default": 1,
+						"minimum": 1,
+						"maximum": 10,
+						"multipleOf": 1
+					},
+					"wave_duration_enabled": {
+						"title": "Wave length",
+						"description": "Make waves longer or shorter.",
+						"type": "boolean",
+						"default": false
+					},
+					"wave_duration_multiplier": {
+						"title": "Wave length multiplier",
+						"description": "1 is vanilla. Short waves cut off the spawn groups that were timed to arrive late; long waves are carried by the repeating ones.",
+						"type": "number",
+						"default": 1,
+						"minimum": 0.25,
+						"maximum": 3,
+						"multipleOf": 0.25
+					},
+					"death_guard_enabled": {
+						"title": "Death Guard",
+						"description": "When every player dies, offer to restart the wave instead of ending the run. Unlimited restarts; each one counts as a retry on the end-run screen.",
+						"type": "boolean",
+						"default": false
+					},
+					"cursed_enabled": {
+						"title": "All Cursed",
+						"description": "Curse everything you are offered. Shop cards and crates show the curse and its boosted stats before you take them. Needs the Abyssal Terrors DLC; without it this does nothing.",
+						"type": "boolean",
+						"default": false
+					},
+					"cursed_items": {
+						"title": "Curse items",
+						"type": "boolean",
+						"default": true
+					},
+					"cursed_weapons": {
+						"title": "Curse weapons",
+						"type": "boolean",
+						"default": true
+					},
+					"cursed_enemy_chance": {
+						"title": "Cursed enemy chance (%)",
+						"description": "Chance each enemy spawns cursed, on top of the roll your Curse stat already gets. Cursed enemies are tougher, faster and drop more gold. 0 leaves the game's own rate alone. Bosses and loot aliens are never cursed.",
+						"type": "number",
+						"default": 0,
+						"minimum": 0,
+						"maximum": 100,
+						"multipleOf": 5
+					},
+					"recurse_enabled": {
+						"title": "Recurse locked items",
+						"description": "A cursed item you lock in the shop keeps the exact curse it was given, because the game can only curse an item that is not cursed yet. Turn this on and a cursed locked item is put back through the same roll a newly offered item gets, every time you leave the shop - so it is re-cursed as often as a new item of its kind would be, and the stats it comes back with can be better or worse than the ones it had. A roll that misses leaves the curse it already had. With All Cursed on, that roll never misses. Needs the Abyssal Terrors DLC; without it this does nothing.",
+						"type": "boolean",
+						"default": false
+					},
+					"unlimited_items_enabled": {
+						"title": "No limit on limited items",
+						"description": "Some items may only be held a fixed number of times - the card reads \"Limited (1/2)\" - and once you are at that number the game stops offering them. Turn this on and it keeps offering them, in the shop, from crates and from a treasure map, and the items that duplicate one of yours will keep going too.",
+						"type": "boolean",
+						"default": false
+					},
+					"unlimited_uniques_enabled": {
+						"title": "No limit on unique items",
+						"description": "The same for the items you may only ever hold one of - the card reads \"Unique\". Turn this on and one you already own can be offered again. These are the items the game most carefully made you have only one of, so stacking them is where a run gets silly.",
+						"type": "boolean",
+						"default": false
+					},
+					"bans_enabled": {
+						"title": "Bans",
+						"description": "Change how many shop bans a run gets. Turning this on also turns ban mode on for the run and lifts the challenge that normally has to be completed first.",
+						"type": "boolean",
+						"default": false
+					},
+					"bans_max": {
+						"title": "Bans per run",
+						"description": "How many ban tokens each player starts a run with. 8 is vanilla. Applies from the next run.",
+						"type": "number",
+						"default": 8,
+						"minimum": 0,
+						"maximum": 100,
+						"multipleOf": 1
+					},
+					"bans_weapons": {
+						"title": "Ban weapons too",
+						"description": "Vanilla only lets you ban items in the shop. This puts the ban button on shop weapons as well. A banned weapon is that weapon at that tier, the same way a banned item is that item.",
+						"type": "boolean",
+						"default": false
+					},
+					"recycle_items_enabled": {
+						"title": "Recycle items",
+						"description": "The game lets you recycle a weapon you own, and an item only while it is still being offered to you. Turn this on and the shop's item panel gets the same Recycle button: click an item you already have and it goes back for materials, at the same rate a weapon does. One click is one copy, so an item you hold three of takes three clicks. Your character cannot be recycled.",
+						"type": "boolean",
+						"default": false
+					},
+					"weapon_limit_enabled": {
+						"title": "Weapon limit",
+						"description": "Fix how many weapons a player may hold, instead of the 6 slots vanilla starts you with and the items that change them.",
+						"type": "boolean",
+						"default": false
+					},
+					"weapon_limit": {
+						"title": "Weapons allowed",
+						"description": "6 is vanilla. Set it to 1 for a one-weapon run: anything a character would start with beyond the limit is dropped at run start, and the weapon you picked yourself is the one that is kept.",
+						"type": "number",
+						"default": 6,
+						"minimum": 1,
+						"maximum": 12,
+						"multipleOf": 1
+					},
+					"endless_harvesting_enabled": {
+						"title": "Stop harvesting decay past wave 20",
+						"description": "Past wave 20 the game takes 20% of your Harvesting away at the end of every wave, so a harvesting build winds down whether you keep playing well or not. Turn this on and the stat stays where it is. It still does not grow past wave 20 - that is a separate vanilla rule - and the Harvesting tooltip still describes the decay.",
+						"type": "boolean",
+						"default": false
+					},
+					"endless_piggy_bank_enabled": {
+						"title": "Keep the Piggy Bank working past wave 20",
+						"description": "The Piggy Bank pays you 20% of your materials at the start of every wave, and the game stops paying past wave 20. Turn this on and it keeps paying at the same rate for as long as the run lasts. Characters that lose materials at the start of a wave are left exactly as vanilla has them.",
+						"type": "boolean",
+						"default": false
+					},
+					"verbose_log": {
+						"title": "Verbose log",
+						"description": "Write what each tweak did to modloader.log, once per wave.",
+						"type": "boolean",
+						"default": false
+					}
+				}
+			}
+		}
+	}
+}

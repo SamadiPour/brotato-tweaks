@@ -1,0 +1,49 @@
+config_version=4
+
+; ModLoaderMod, ModLoaderLog and ModLoaderConfig are `class_name` static classes in the game,
+; not autoloads, so the harness registers them as global classes here. The shapes have to match:
+; naming an Object instance method on one of them is a parse error, and a harness that stubbed
+; them as autoload Nodes could not see it.
+;
+; CharacterData is registered for the same reason: core/curse.gd asks `data is CharacterData`,
+; and the check has to compile here as well as in the game.
+_global_script_classes=[ {
+"base": "Object",
+"class": "ModLoaderMod",
+"language": "GDScript",
+"path": "res://stubs/mod_loader_mod.gd"
+}, {
+"base": "Object",
+"class": "ModLoaderLog",
+"language": "GDScript",
+"path": "res://stubs/mod_loader_log.gd"
+}, {
+"base": "Object",
+"class": "ModLoaderConfig",
+"language": "GDScript",
+"path": "res://stubs/mod_loader_config.gd"
+}, {
+"base": "Resource",
+"class": "CharacterData",
+"language": "GDScript",
+"path": "res://stubs/character_data.gd"
+} ]
+_global_script_class_icons={
+"CharacterData": "",
+"ModLoaderConfig": "",
+"ModLoaderLog": "",
+"ModLoaderMod": ""
+}
+
+[application]
+
+config/name="Brotato-Tweaks test harness"
+run/main_scene="res://main.tscn"
+
+; Only the singletons the mod's own scripts actually name.
+[autoload]
+
+ModLoaderStore="*res://stubs/mod_loader_store.gd"
+ModLoader="*res://stubs/mod_loader.gd"
+RunData="*res://stubs/run_data.gd"
+ProgressData="*res://stubs/progress_data.gd"

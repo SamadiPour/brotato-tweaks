@@ -1,0 +1,7 @@
+tests/godot/mods-unpacked
+tests/godot/builds
+tests/godot/.import/
+dist/
+.DS_Store
+__pycache__/
+*.pyc

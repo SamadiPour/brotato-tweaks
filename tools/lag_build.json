@@ -1,0 +1,93 @@
+{
+	"_comment": [
+		"Loadout for the lag repro save. tools/make_run_save.sh turns this into a",
+		"run_v3_<profile>.json the game will offer as 'Continue run'.",
+		"Continuing lands in the shop for `wave`; press Go to play it.",
+		"",
+		"Six Shredder IVs: each shot pierces 3, has can_bounce = true, and carries the",
+		"weapon's own exploding_effect, so every pellet that lands is an explosion.",
+		"item_ricochet turns can_bounce into actual bounces (+1 each).",
+		"item_fruit_basket is the only fruit source that matters this deep: the normal",
+		"consumable roll is divided by (1 + endless factor), which is ~202x at wave 80,",
+		"while fruit_basket's 1%-per-copy roll is flat.",
+		"",
+		"enemy_scaling is the game's own accessibility multiplier, stored per run, and it",
+		"is the only thing here that is not a real build. At wave 80 the endless factor is",
+		"~201: EntityService multiplies enemy health by 2.25x that and damage by 1x that,",
+		"and Player divides the i-frames after a hit by it. Left at 1.0 the wave is not a",
+		"measurement, it is a death on contact against enemies nothing can kill.",
+		"",
+		"So: damage 0.001 (net ~1x base, survivable) and health 0.02 (net ~9x base, so",
+		"things actually die and the kill path - explosions, loot, fruit, materials - runs).",
+		"Speed stays at 1.0. Spawn counts are untouched, which is what the frame time is",
+		"actually about. Put health back to 1.0 for the other test: nothing dies, enemies",
+		"pile up against the wave cap, and you are measuring live-entity count alone."
+	],
+
+	"profile_id": 0,
+	"wave": 80,
+	"zone": 0,
+	"difficulty": 5,
+	"nb_of_waves": 20,
+	"endless": true,
+	"enabled_dlcs": ["abyssal_terrors"],
+
+	"gold": 5000,
+	"level": 60,
+
+	"enemy_scaling": { "health": 0.02, "damage": 0.001, "speed": 1.0 },
+
+	"character": "character_well_rounded",
+
+	"weapons": [
+		{ "id": "weapon_shredder_4", "count": 6 }
+	],
+
+	"items": [
+		{ "id": "item_ricochet", "count": 4 },
+		{ "id": "item_explosive_shells", "count": 4 },
+		{ "id": "item_dynamite", "count": 8 },
+		{ "id": "item_plastic_explosive", "count": 4 },
+		{ "id": "item_honey", "count": 4 },
+
+		{ "id": "item_turret_rocket", "count": 6 },
+		{ "id": "item_turret", "count": 4 },
+		{ "id": "item_clockwork_wasp", "count": 4 },
+		{ "id": "item_bot_o_mine", "count": 4 },
+		{ "id": "item_landmines", "count": 4 },
+		{ "id": "item_wandering_bot", "count": 2 },
+
+		{ "id": "item_diploma", "count": 4 },
+		{ "id": "item_toolbox", "count": 4 },
+		{ "id": "item_cog", "count": 4 },
+		{ "id": "item_exoskeleton", "count": 2 },
+
+		{ "id": "item_coffee", "count": 6 },
+		{ "id": "item_small_magazine", "count": 6 },
+		{ "id": "item_banner", "count": 4 },
+		{ "id": "item_poisonous_tonic", "count": 3 },
+
+		{ "id": "item_focus", "count": 3 },
+		{ "id": "item_triangle_of_power", "count": 3 },
+		{ "id": "item_big_arms", "count": 4 },
+		{ "id": "item_heavy_bullets", "count": 4 },
+		{ "id": "item_night_goggles", "count": 3 },
+
+		{ "id": "item_fruit_basket", "count": 4 },
+		{ "id": "item_lucky_charm", "count": 3 },
+		{ "id": "item_clover", "count": 4 },
+		{ "id": "item_bowler_hat", "count": 3 },
+		{ "id": "item_propeller_hat", "count": 3 },
+		{ "id": "item_wolf_helmet", "count": 2 },
+
+		{ "id": "item_alien_baby", "count": 6 },
+		{ "id": "item_octopus", "count": 4 },
+		{ "id": "item_panda", "count": 4 },
+		{ "id": "item_warrior_helmet", "count": 6 },
+		{ "id": "item_metal_plate", "count": 6 },
+		{ "id": "item_leather_vest", "count": 4 },
+		{ "id": "item_cape", "count": 3 },
+		{ "id": "item_medikit", "count": 3 },
+		{ "id": "item_mammoth", "count": 2 }
+	]
+}
