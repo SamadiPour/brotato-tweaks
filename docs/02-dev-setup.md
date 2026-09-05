@@ -35,12 +35,16 @@ the test harness, never something the mod ships against.
 $ tests/run.sh                 # parse + core checks, ~10s
 $ tests/run_extensions.sh      # real loader + adapters against real vanilla, ~30s
 $ tests/run_menu.sh            # the settings tab, laid out on a real title screen, ~20s
+$ tests/run_baseline.sh        # what this mod believes about vanilla, ~15s
 $ tools/build.sh --install     # zip it and drop it in the game's mods/ folder
 ```
 
 Run `run_menu.sh` after anything that touches `ui/`. It is the only harness where the engine lays
 the tab out, and a UI mistake in Godot 3 is often a segfault rather than an error — no message, no
 stack, and a frame away from the line that caused it.
+
+Run `run_baseline.sh` after decompiling a new version of the game. It is the only harness that fails
+on a vanilla change the compiler is happy with — see "When the game updates" below.
 
 Then launch the game and read `~/Library/Application Support/Brotato/logs/modloader.log`. A healthy
 start looks like this:
@@ -102,7 +106,37 @@ is never opened, and an existing run save is moved aside rather than overwritten
 `tests/run.sh` needs nothing but Godot 3 — it runs against the stubs in `tests/godot/stubs/`. It
 covers the pure cores and compiles everything except `extensions/`, which is the part that needs
 the real game to even load. That is enough for changing scaling rules or the settings layout; it is
-not enough for changing an adapter.
+not enough for changing an adapter, and `run_baseline.sh` needs the real game by definition.
+
+## When the game updates
+
+Decompile the new version over `$BROTATO_SRC`, then run the harnesses in this order:
+
+```console
+$ tests/run_extensions.sh      # a renamed method, a changed signature, a member that is gone
+$ tests/run_baseline.sh        # everything that still compiles but is no longer true
+$ tests/run_menu.sh            # the Options menu is still the shape the tab mounts into
+```
+
+The first is the compiler. The second is the one worth having, because three kinds of breakage
+compile perfectly and change how the game plays:
+
+| What moved | What it does with nothing watching |
+|---|---|
+| A **default argument** on an overridden method | GDScript takes defaults from the most-derived method, so the adapter keeps handing out the old number to every caller that omits it. `RunData.init_elites_spawn(10, 0.4)` is the live example. |
+| A **vanilla method this mod copies** | Ten of them, listed in `tests/vanilla_baseline.json` with why each copy exists. The copy still runs; it is just no longer what the game does. |
+| A **signal name** looked up by string | `enemy_respawned` and `item_discard_button_pressed`. Not a parse error — a feature that stops happening. |
+
+`run_baseline.sh` names the file, the drift and the reason. Read every failure, fix or re-verify the
+copy it points at, bump `compatible_game_version` in `manifest.json`, and only then:
+
+```console
+$ tests/run_baseline.sh --update
+```
+
+That re-records the file. It refuses to write while it cannot read vanilla at all, so an `--update`
+against a half-decompiled tree cannot quietly erase what the mod knows. **`--update` is not a way to
+make the test pass** — it is what you run after you have read what it said.
 
 ## Adding a tweak
 
@@ -118,9 +152,12 @@ not enough for changing an adapter.
 5. Place it on the settings screen: a section in `core/settings_layout.gd`, plus a `PARENTS` entry
    if it is a sub-option of a toggle and a `FORMATS` entry if it is a number. Skipping this is not
    fatal — an unclaimed key is drawn in a trailing section — but it is where it will end up.
-6. Run all three harnesses, then play a wave with it on and a wave with it off. `tests/run.sh`
+6. Run all four harnesses, then play a wave with it on and a wave with it off. `tests/run.sh`
    builds the settings tab headless and `tests/run_menu.sh` puts it on a real screen, so a row that
-   is wired wrong fails there rather than in the game.
+   is wired wrong fails there rather than in the game. A new adapter method means
+   `tests/run_baseline.sh --update`, which is also the moment to ask whether the new code *copies*
+   any vanilla logic — if it does, add it to the `bodies` list in `tests/vanilla_baseline.json`
+   before running `--update`, with a line saying what was copied and why.
 
 Finish on the tab itself: open Options from the title screen *and* from the pause menu, and cycle
 to it with the shoulder buttons as well as the mouse.

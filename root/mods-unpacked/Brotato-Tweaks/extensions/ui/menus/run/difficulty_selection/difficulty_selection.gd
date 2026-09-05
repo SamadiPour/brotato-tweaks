@@ -17,7 +17,7 @@ extends "res://ui/menus/run/difficulty_selection/difficulty_selection.gd"
 #
 # See docs/01-architecture.md ("Extension points").
 
-const TWEAKS_GROUP := "brotato_tweaks"
+const TweaksLookup = preload("res://mods-unpacked/Brotato-Tweaks/core/tweaks_lookup.gd")
 
 
 func _on_element_pressed(element: InventoryElement, inventory_player_index: int) -> void:
@@ -35,9 +35,4 @@ func _on_element_pressed(element: InventoryElement, inventory_player_index: int)
 
 
 func _tweaks():
-	if not is_inside_tree():
-		return null
-	var found := get_tree().get_nodes_in_group(TWEAKS_GROUP)
-	if found.empty() or not is_instance_valid(found[0]):
-		return null
-	return found[0]
+	return TweaksLookup.find(self)

@@ -79,6 +79,7 @@ the retry counter the end-run screen shows.
 $ tests/run.sh                 # parse + core checks against stubs
 $ tests/run_extensions.sh      # real ModLoader + adapters against decompiled vanilla
 $ tests/run_menu.sh            # the settings tab, laid out on a real title screen
+$ tests/run_baseline.sh        # the vanilla facts this mod stands on, still true
 ```
 
 ## License

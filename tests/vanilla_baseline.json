@@ -1,0 +1,352 @@
+{
+	"$comment": [
+		"What this mod believes about vanilla, recorded so a game patch that moves any of it fails a",
+		"test instead of changing how the game plays. Checked by tests/run_baseline.sh; regenerated",
+		"with tests/run_baseline.sh --update.",
+		"",
+		"'overrides' is derived: every method an adapter overrides that vanilla declares, with the",
+		"default argument values vanilla gives it. GDScript takes defaults from the most-derived",
+		"method, so a default that moves in vanilla and not here is a silent behaviour change that",
+		"compiles perfectly.",
+		"",
+		"'bodies' is the hand-kept half, and the one worth reading. Each entry is a vanilla method",
+		"whose logic this mod copies rather than calls. Nothing catches those drifting apart -- the",
+		"copy still compiles, it is just no longer what vanilla does -- so the method's source is",
+		"hashed and a change makes the test say which copy has to be re-read, and why.",
+		"",
+		"'signals' are the ones the mod looks up by name at runtime. A renamed signal is not a parse",
+		"error; it is a feature that silently stops happening."
+	],
+	"game_version": "1.1.15",
+	"overrides": {
+		"extensions/global/entity_spawner.gd": {
+			"extends": "res://global/entity_spawner.gd",
+			"methods": {
+				"_physics_process": {
+					"default_args": [
+
+					]
+				},
+				"init": {
+					"default_args": [
+
+					]
+				}
+			}
+		},
+		"extensions/main.gd": {
+			"extends": "res://main.gd",
+			"methods": {
+				"_on_EntitySpawner_players_spawned": {
+					"default_args": [
+
+					]
+				}
+			}
+		},
+		"extensions/singletons/entity_service.gd": {
+			"extends": "res://singletons/entity_service.gd",
+			"methods": {
+				"get_final_enemy_damage": {
+					"default_args": [
+						0
+					]
+				},
+				"get_final_enemy_health": {
+					"default_args": [
+						0
+					]
+				},
+				"get_final_enemy_speed": {
+					"default_args": [
+						0
+					]
+				}
+			}
+		},
+		"extensions/singletons/item_service.gd": {
+			"extends": "res://singletons/item_service.gd",
+			"methods": {
+				"apply_item_effect_modifications": {
+					"default_args": [
+
+					]
+				},
+				"get_limited_items": {
+					"default_args": [
+
+					]
+				}
+			}
+		},
+		"extensions/singletons/run_data.gd": {
+			"extends": "res://singletons/run_data.gd",
+			"methods": {
+				"add_item": {
+					"default_args": [
+						false
+					]
+				},
+				"add_starting_items_and_weapons": {
+					"default_args": [
+
+					]
+				},
+				"add_weapon": {
+					"default_args": [
+						false
+					]
+				},
+				"get_free_weapon_slots": {
+					"default_args": [
+
+					]
+				},
+				"get_player_banned_items": {
+					"default_args": [
+
+					]
+				},
+				"get_player_effect": {
+					"default_args": [
+
+					]
+				},
+				"get_remaining_max_nb_item": {
+					"default_args": [
+
+					]
+				},
+				"has_weapon_slot_available": {
+					"default_args": [
+
+					]
+				},
+				"init_elites_spawn": {
+					"default_args": [
+						10,
+						0.4
+					]
+				},
+				"remove_stat": {
+					"default_args": [
+
+					]
+				},
+				"reset": {
+					"default_args": [
+						false
+					]
+				}
+			}
+		},
+		"extensions/singletons/zone_service.gd": {
+			"extends": "res://singletons/zone_service.gd",
+			"methods": {
+				"get_wave_data": {
+					"default_args": [
+
+					]
+				}
+			}
+		},
+		"extensions/ui/menus/ingame/pause_menu.gd": {
+			"extends": "res://ui/menus/ingame/pause_menu.gd",
+			"methods": {
+				"_ready": {
+					"default_args": [
+
+					]
+				}
+			}
+		},
+		"extensions/ui/menus/ingame/retry_wave.gd": {
+			"extends": "res://ui/menus/ingame/retry_wave.gd",
+			"methods": {
+				"show": {
+					"default_args": [
+
+					]
+				}
+			}
+		},
+		"extensions/ui/menus/ingame/upgrades_ui_player_container.gd": {
+			"extends": "res://ui/menus/ingame/upgrades_ui_player_container.gd",
+			"methods": {
+				"_ready": {
+					"default_args": [
+
+					]
+				},
+				"show_item": {
+					"default_args": [
+
+					]
+				}
+			}
+		},
+		"extensions/ui/menus/run/difficulty_selection/difficulty_selection.gd": {
+			"extends": "res://ui/menus/run/difficulty_selection/difficulty_selection.gd",
+			"methods": {
+				"_on_element_pressed": {
+					"default_args": [
+
+					]
+				}
+			}
+		},
+		"extensions/ui/menus/shop/base_shop.gd": {
+			"extends": "res://ui/menus/shop/base_shop.gd",
+			"methods": {
+				"_on_tree_exited": {
+					"default_args": [
+
+					]
+				},
+				"_ready": {
+					"default_args": [
+
+					]
+				}
+			}
+		},
+		"extensions/ui/menus/shop/item_popup.gd": {
+			"extends": "res://ui/menus/shop/item_popup.gd",
+			"methods": {
+				"_on_DiscardButton_pressed": {
+					"default_args": [
+
+					]
+				},
+				"_update_button_visibilities": {
+					"default_args": [
+
+					]
+				},
+				"should_show_buttons": {
+					"default_args": [
+
+					]
+				}
+			}
+		},
+		"extensions/ui/menus/shop/shop_item.gd": {
+			"extends": "res://ui/menus/shop/shop_item.gd",
+			"methods": {
+				"manage_ban_button_visibility": {
+					"default_args": [
+
+					]
+				}
+			}
+		},
+		"extensions/ui/menus/title_screen/title_screen.gd": {
+			"extends": "res://ui/menus/title_screen/title_screen.gd",
+			"methods": {
+				"_ready": {
+					"default_args": [
+
+					]
+				}
+			}
+		},
+		"extensions/zones/wave_manager.gd": {
+			"extends": "res://zones/wave_manager.gd",
+			"methods": {
+				"init": {
+					"default_args": [
+
+					]
+				}
+			}
+		}
+	},
+	"bodies": [
+		{
+			"script": "res://ui/menus/shop/item_popup.gd",
+			"method": "_update_button_visibilities",
+			"copied_by": "extensions/ui/menus/shop/item_popup.gd",
+			"why": "The override is this body with the RunData.can_combine() line dropped, because that call is typed WeaponData and cannot be asked about an item. Everything else about which buttons show is copied.",
+			"md5": "d798818a3b9424af8198cc08e4fd3000"
+		},
+		{
+			"script": "res://ui/menus/shop/item_popup.gd",
+			"method": "should_show_buttons",
+			"copied_by": "extensions/ui/menus/shop/item_popup.gd",
+			"why": "The override widens vanilla's answer and then repeats the co-op half of this condition by hand: 'not RunData.is_coop_run or focused'.",
+			"md5": "62a451c40575ad0aff80c787c70a0e92"
+		},
+		{
+			"script": "res://ui/menus/shop/base_shop.gd",
+			"method": "_on_item_discard_button_pressed",
+			"copied_by": "extensions/ui/menus/shop/base_shop.gd",
+			"why": "tweaks_recycle_item() is this method line for line against the items half of the gear container, with is_weapon false and add_recycled() deliberately left out.",
+			"md5": "15ef1b9aa02c756a5e93bf0104ac6596"
+		},
+		{
+			"script": "res://main.gd",
+			"method": "_on_EntitySpawner_players_spawned",
+			"copied_by": "extensions/main.gd",
+			"why": "The adapter repeats the two lines this method runs for a positive gain_pct_gold_start_wave, for the waves past nb_of_waves where this one skips them.",
+			"md5": "df65ccb1d560f538fa8383819a6391ab"
+		},
+		{
+			"script": "res://main.gd",
+			"method": "_on_HarvestingTimer_timeout",
+			"copied_by": "extensions/singletons/run_data.gd",
+			"why": "The endless harvesting decay is one line in here. remove_stat() is skipped on the strength of this being the only place the harvesting stat is removed.",
+			"md5": "8485a9c208ba50656cbfcbc7d0dd1e9b"
+		},
+		{
+			"script": "res://ui/menus/shop/shop_item.gd",
+			"method": "manage_ban_button_visibility",
+			"copied_by": "extensions/ui/menus/shop/shop_item.gd",
+			"why": "The adapter re-runs the tail of this method that vanilla skips for a weapon or an unearned challenge -- the same text, the same show, the same activate().",
+			"md5": "deffe3bb4776a26c8e360ae94f9b66c5"
+		},
+		{
+			"script": "res://ui/menus/ingame/upgrades_ui_player_container.gd",
+			"method": "show_item",
+			"copied_by": "extensions/ui/menus/ingame/upgrades_ui_player_container.gd",
+			"why": "The adapter rewrites the ban label this method builds, because vanilla builds both halves of it out of RunData.BAN_MAX_TOKEN.",
+			"md5": "29d5f00fb530783e74e62b8cf10be87b"
+		},
+		{
+			"script": "res://global/entity_spawner.gd",
+			"method": "_physics_process",
+			"copied_by": "extensions/global/entity_spawner.gd",
+			"why": "The adapter recognises the tick vanilla spawned on by cur_spawn_delay == 0, which is this method's own state machine and nothing the engine guarantees.",
+			"md5": "e87ae1cf1dd2d4bd76527110a9c0095b"
+		},
+		{
+			"script": "res://global/entity_spawner.gd",
+			"method": "spawn",
+			"copied_by": "core/spawn_rate.gd",
+			"why": "spawn() pops exactly one entity per call. VANILLA_PER_TICK and the whole 40-a-second model in core/spawn_rate.gd are read off this method and _physics_process() together.",
+			"md5": "801cdf729add2322100e3fe0c2db1ab7"
+		},
+		{
+			"script": "res://ui/menus/ingame/retry_wave.gd",
+			"method": "show",
+			"copied_by": "extensions/ui/menus/ingame/retry_wave.gd",
+			"why": "The adapter makes the retry half of this screen visible and writes the retry line, which this method writes only when vanilla's own option is on.",
+			"md5": "9b6f3c054263f5096d9882b735579c9d"
+		}
+	],
+	"signals": [
+		{
+			"script": "res://global/entity_spawner.gd",
+			"signal": "enemy_respawned",
+			"used_by": "extensions/global/entity_spawner.gd",
+			"why": "Connected by name for cursed enemies, and walked with get_signal_connection_list() to find the DLC's own curse behaviour. A rename is not a parse error -- it is All Cursed silently doing nothing to enemies.",
+			"present": true
+		},
+		{
+			"script": "res://ui/menus/shop/item_popup.gd",
+			"signal": "item_discard_button_pressed",
+			"used_by": "extensions/ui/menus/shop/item_popup.gd",
+			"why": "Walked with get_signal_connection_list() to reach the shop that built the popup, because the vanilla handler is typed WeaponData and cannot be overridden for an item. A rename is a Recycle button that does nothing.",
+			"present": true
+		}
+	]
+}

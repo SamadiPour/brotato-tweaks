@@ -12,7 +12,7 @@ extends "res://singletons/zone_service.gd"
 #
 # See docs/01-architecture.md ("Extension points").
 
-const TWEAKS_GROUP := "brotato_tweaks"
+const TweaksLookup = preload("res://mods-unpacked/Brotato-Tweaks/core/tweaks_lookup.gd")
 
 
 func get_wave_data(my_id: int, index: int) -> Resource:
@@ -24,9 +24,4 @@ func get_wave_data(my_id: int, index: int) -> Resource:
 
 
 func _tweaks():
-	if not is_inside_tree():
-		return null
-	var found := get_tree().get_nodes_in_group(TWEAKS_GROUP)
-	if found.empty() or not is_instance_valid(found[0]):
-		return null
-	return found[0]
+	return TweaksLookup.find(self)

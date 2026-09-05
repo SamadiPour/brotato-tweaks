@@ -18,7 +18,7 @@ extends "res://global/entity_spawner.gd"
 #
 # See docs/01-architecture.md ("Extension points").
 
-const TWEAKS_GROUP := "brotato_tweaks"
+const TweaksLookup = preload("res://mods-unpacked/Brotato-Tweaks/core/tweaks_lookup.gd")
 const TWEAKS_FEATURE := "enemy_multiplier"
 
 # The DLC's CurseSceneEffectBehavior, found once per wave off this node's own signal connections.
@@ -155,12 +155,5 @@ func _tweaks_curse_value() -> float:
 # Kept once found: `_tweaks_on_enemy_respawned()` asks per enemy spawn, and a group lookup walks
 # the tree.
 func _tweaks():
-	if _tweaks_node != null and is_instance_valid(_tweaks_node):
-		return _tweaks_node
-	if not is_inside_tree():
-		return null
-	var found := get_tree().get_nodes_in_group(TWEAKS_GROUP)
-	if found.empty() or not is_instance_valid(found[0]):
-		return null
-	_tweaks_node = found[0]
+	_tweaks_node = TweaksLookup.cached(self, _tweaks_node)
 	return _tweaks_node

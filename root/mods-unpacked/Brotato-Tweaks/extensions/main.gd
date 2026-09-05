@@ -41,7 +41,7 @@ extends "res://main.gd"
 # replacing, so while the loader is installing the extension the parser cannot resolve the base
 # class it is being asked to infer return types through, and a `:=` becomes "the variable type
 # can't be inferred" in the loader's own log.
-const TWEAKS_GROUP := "brotato_tweaks"
+const TweaksLookup = preload("res://mods-unpacked/Brotato-Tweaks/core/tweaks_lookup.gd")
 
 
 func _on_EntitySpawner_players_spawned(players: Array) -> void:
@@ -69,9 +69,4 @@ func _on_EntitySpawner_players_spawned(players: Array) -> void:
 
 
 func _tweaks():
-	if not is_inside_tree():
-		return null
-	var found: Array = get_tree().get_nodes_in_group(TWEAKS_GROUP)
-	if found.empty() or not is_instance_valid(found[0]):
-		return null
-	return found[0]
+	return TweaksLookup.find(self)

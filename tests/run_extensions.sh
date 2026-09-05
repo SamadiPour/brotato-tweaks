@@ -19,7 +19,9 @@
 # The two cannot share a process. Once the loader has installed an extension,
 # res://global/entity_spawner.gd *is* our script, so loading our file again makes it extend
 # itself. So pass 2 runs separately, against a copy staged outside mods-unpacked/ where the
-# loader will not touch it and the vanilla scripts are still pristine.
+# loader will not touch it and the vanilla scripts are still pristine. The mod's core/ is the one
+# thing put back in place for it, because the adapters preload out of it; nothing there is a mod
+# the loader can install.
 #
 # Node paths and scene structure are the next harness's job: tests/run_menu.sh boots a real title
 # screen and mounts the tab against it.
@@ -54,7 +56,12 @@ PARSE_LOG="$(mktemp)"
 
 cleanup() {
 	rm -f "$CHECK"
-	[[ -L "$LINK" ]] && rm -f "$LINK"
+	if [[ -L "$LINK" ]]; then
+		rm -f "$LINK"
+	else
+		# Pass 2 replaces the symlink with a real directory holding core/ — see below.
+		rm -rf "$LINK"
+	fi
 	rm -rf "$STAGE" "$LOADER_HOME" "$PARSE_HOME" "$LOADER_LOG" "$PARSE_LOG"
 	return 0
 }
@@ -119,6 +126,15 @@ grep -E -A 1 "Parse Error|SCRIPT ERROR" "$LOADER_LOG" || true
 
 mkdir -p "$STAGE"
 cp -R "$REPO_ROOT/root/mods-unpacked/Brotato-Tweaks/extensions/." "$STAGE/"
+
+# The adapters `preload()` res://mods-unpacked/Brotato-Tweaks/core/tweaks_lookup.gd, and a preload
+# is resolved at parse time: with the file absent every adapter fails to compile for a reason that
+# has nothing to do with vanilla. So core/ is put back — and only core/. There is no manifest.json,
+# no mod_main.gd and no extensions/ underneath it, so ModLoader has no mod to install in this pass
+# and the vanilla scripts being compiled against stay pristine by construction rather than by
+# timing.
+mkdir -p "$LINK/Brotato-Tweaks"
+cp -R "$REPO_ROOT/root/mods-unpacked/Brotato-Tweaks/core" "$LINK/Brotato-Tweaks/"
 cat > "$CHECK" <<'GDSCRIPT'
 extends SceneTree
 

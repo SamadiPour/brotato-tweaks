@@ -51,7 +51,7 @@ extends "res://ui/menus/shop/base_shop.gd"
 #
 # See docs/01-architecture.md ("Extension points").
 
-const TWEAKS_GROUP := "brotato_tweaks"
+const TweaksLookup = preload("res://mods-unpacked/Brotato-Tweaks/core/tweaks_lookup.gd")
 
 # `_on_tree_exited()` runs after the node has left the tree, where `get_tree()` is null and the
 # group lookup this mod finds `Tweaks` with cannot be made at all. So it is found while the screen
@@ -189,12 +189,5 @@ func _tweaks_recycle_finished(_player_index: int) -> void:
 
 
 func _tweaks():
-	if _tweaks_node != null and is_instance_valid(_tweaks_node):
-		return _tweaks_node
-	if not is_inside_tree():
-		return null
-	var found := get_tree().get_nodes_in_group(TWEAKS_GROUP)
-	if found.empty() or not is_instance_valid(found[0]):
-		return null
-	_tweaks_node = found[0]
+	_tweaks_node = TweaksLookup.cached(self, _tweaks_node)
 	return _tweaks_node

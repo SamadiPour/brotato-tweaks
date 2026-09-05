@@ -105,7 +105,7 @@ func _mount(menu_options, tweaks) -> String:
 	if strip.has_node(BUTTON_NAME):
 		return ""
 
-	var sections := Layout.build(tweaks.get_schema_properties(), tweaks.settings)
+	var sections := Layout.build(tweaks.get_schema_properties(), tweaks.get_settings())
 	if sections.empty():
 		return "the config schema declares nothing this screen can draw"
 
@@ -128,7 +128,7 @@ func _mount(menu_options, tweaks) -> String:
 	# Anything else that writes a setting — Mod Options, another screen of this one — moves these
 	# widgets too. Godot drops the connection when the tab is freed with its scene.
 	tweaks.connect("settings_changed", tab, "apply_settings")
-	tab.apply_settings(tweaks.settings)
+	tab.apply_settings(tweaks.get_settings())
 
 	_add_button(controller, strip, template, paths.size())
 	return ""

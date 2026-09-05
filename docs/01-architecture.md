@@ -29,34 +29,44 @@ Seventeen independent tweaks, one shared spine, and one screen to set them from:
                                         mounts  │                 ▼
                                                 ▼   ┌────────────────────────────┐
                                  ┌──────────────────┤ tweaks.gd                  │
-                                 │ ui/              │   settings, on/off, logging│
-                                 │  options_tab     ├───────────────┬────────────┘
-                                 │  tweaks_tab      │               │
-                                 └──────────────────┘               │
-                                          ▲                         │
-      ┌──────────────────┬─────────────────┴┬─────────────────────┴──────────┐
-      ▼                  ▼                  ▼                                ▼
-┌──────────────┐ ┌──────────────┐ ┌────────────────┐               ┌────────────────┐
-│ wave_scaling │ │ enemy_stats  │ │ elite_schedule │               │ settings_layout│
-│ (pure)       │ │ (pure)       │ │ (pure)         │               │ (pure)         │
-└──────────────┘ └──────────────┘ └────────────────┘               └────────────────┘
+                                 │ ui/              │   on/off, logging          │
+                                 │  options_tab     ├──────┬─────────┬───────────┘
+                                 │  tweaks_tab      │      │         │
+                                 └──────────────────┘      │         ▼
+                                          ▲                │  ┌────────────────┐
+                                          │                │  │ settings_store │
+                                          │                │  │ (ModLoader)    │
+                                          │                │  └───────┬────────┘
+      ┌──────────────────┬─────────────────┴┬──────────────┴──┐       ▼
+      ▼                  ▼                  ▼                 ▼  ┌────────────────┐
+┌──────────────┐ ┌──────────────┐ ┌────────────────┐             │ settings_layout│
+│ wave_scaling │ │ enemy_stats  │ │ elite_schedule │             │ (pure)         │
+│ (pure)       │ │ (pure)       │ │ (pure)         │             └────────────────┘
+└──────────────┘ └──────────────┘ └────────────────┘
                  ┌──────────────┐ ┌────────────────┐    ┌────────────────┐
                  │ loadout      │ │ bonus_spawns   │    │ curse          │
                  │ (pure)       │ │ (pure)         │    │ (reads the DLC)│
                  └──────────────┘ └────────────────┘    └────────────────┘
-                 ┌──────────────┐ ┌────────────────┐
-                 │ recycling    │ │ item_limits    │
-                 │ (pure)       │ │ (pure)         │
-                 └──────────────┘ └────────────────┘
+                 ┌──────────────┐ ┌────────────────┐    ┌────────────────┐
+                 │ recycling    │ │ item_limits    │    │ tweaks_lookup  │
+                 │ (pure)       │ │ (pure)         │    │ (finds Tweaks) │
+                 └──────────────┘ └────────────────┘    └────────────────┘
+                                                          ▲
+                                        every adapter ────┘
 ```
 
 - **Adapters contain no decisions.** Each one calls the vanilla method, asks `Tweaks` a question,
-  and applies the answer.
-- **`Tweaks` owns settings and nothing else.** It reads the config, answers "is this on", and
-  turns a feature off when an adapter reports that vanilla no longer looks the way it needs to.
-- **The cores take data and return data.** All eight name no game class at all and are exercised
-  headless by `tests/run.sh`. `curse.gd` is the exception that proves it: it reaches for the DLC
-  resource through `ProgressData`, so only its pure half — the two item rules — runs under stubs.
+  and applies the answer. Finding `Tweaks` to ask is `core/tweaks_lookup.gd`, once rather than
+  thirteen times.
+- **`Tweaks` answers about the game and nothing else.** It says "is this on", turns a feature off
+  when an adapter reports that vanilla no longer looks the way it needs to, and writes the log line
+  that names which tweaks are live. Where a setting is *kept* — the config file, the debounce, the
+  Mod Options bridge — is `core/settings_store.gd`, because none of that is a decision about the
+  game.
+- **The cores take data and return data.** Eight of them name no game class at all and are exercised
+  headless by `tests/run.sh`. Three do not pretend to: `curse.gd` reaches for the DLC resource
+  through `ProgressData`, so only its pure half — the two item rules — runs under stubs;
+  `settings_store.gd` is ModLoader's whole surface; and `tweaks_lookup.gd` is one group lookup.
 
 That separation is what makes this survivable across patches: a renamed vanilla method breaks one
 adapter, and the mod's answer is to switch that one feature off.
@@ -67,9 +77,11 @@ adapter, and the mod's answer is to switch that one feature off.
 root/mods-unpacked/Brotato-Tweaks/
   manifest.json          declares the mod and the settings schema
   mod_main.gd            _init installs seventeen extensions, _ready mounts Tweaks
-  tweaks.gd              the mod's own node; owns settings, answers the adapters
+  tweaks.gd              the mod's own node; answers the adapters, delegates settings to the store
 
   core/
+    settings_store.gd    the settings themselves, and the whole of the ModLoader side of them
+    tweaks_lookup.gd     how all thirteen adapters find the Tweaks node
     wave_scaling.gd      pure: one wave's spawn plan — multiply it, lengthen it, add hordes
     enemy_stats.gd       pure: one enemy stat times a dial, with the right floor
     elite_schedule.gd    pure: which init_elites_spawn() call may be rewritten, and to what
@@ -117,10 +129,10 @@ resource paths that a patch can move, and an icon would carry a `.import` folder
 | When | What happens |
 |---|---|
 | `mod_main._init()` | Install the seventeen script extensions. Nothing else — the game is barely alive here. Four of them are the shop, three of which inherit from the fourth; ModLoader sorts every queued extension by its inheritance chain, so the order they are listed in is not load-bearing. |
-| `mod_main._ready()` | Add the `Tweaks` node, read the config, create `user.json` if it is not there yet, log which tweaks are on. No game content is read. |
+| `mod_main._ready()` | Add the `Tweaks` node, which adds its `SettingsStore` child and calls `mount()` on it: read the config, create `user.json` if it is not there yet, wire the ModLoader and Mod Options signals, start the save debounce. Then log which tweaks are on. No game content is read. |
 | Config changed | `ModLoader.current_config_changed` → re-read settings and log the new summary. Every tweak reads its setting at the moment it acts, so changes take effect on the next wave, the next pickup, the next death. |
 | The title screen or the pause menu is built | Its adapter calls `OptionsTab.attach()`, which appends the mod's tab to the Options menu's `UIBetterTabContainer`. See "The settings tab" below. |
-| A widget on the mod's own tab moves | `TweaksTab.setting_changed` → `Tweaks.set_setting()` → save `user.json` (debounced) and re-emit `settings_changed`, which is what hides or shows the sub-options below a toggle. |
+| A widget on the mod's own tab moves | `TweaksTab.setting_changed` → `Tweaks.set_setting()` → `SettingsStore.set_setting()`, which saves `user.json` (debounced) and emits `changed`. `Tweaks` re-emits that as `settings_changed`, which is what hides or shows the sub-options below a toggle. |
 | A widget on the Mod Options screen moves | `ModsConfigInterface.setting_changed` → the same `set_setting()`. See "Brotato Mod Options" below. |
 | A wave is loaded | `ZoneService.get_wave_data()` → `Tweaks.scale_wave_duration()` sets how long it lasts, before `main.gd` reads it for the timer. |
 | A wave is assembled | `WaveManager.init()` → `Tweaks.bonus_elite_count()` / `bonus_boss_count()` / `pick_bonus()`, and one group per feature is appended to what vanilla just finished building. |
@@ -268,6 +280,81 @@ once, and says so. `multipleOf` is deliberately not enforced: the validator chec
 off-step value can only have come from a hand-edited file, where rounding it would throw away a
 choice someone made on purpose.
 
+### `core/settings_store.gd`
+
+```gdscript
+func mount() -> void                                    # called by Tweaks, once it is in the tree
+func get_setting(key: String, default = null)
+func set_setting(key: String, value) -> void
+func reset_to_defaults() -> bool                        # false = nothing was done
+func get_schema_properties() -> Dictionary
+func schema_description() -> String
+var settings: Dictionary
+signal changed(settings)                                # a value moved; emitted at once
+signal persisted(settings)                              # it reached disk; at most one per debounce
+```
+
+A `Node`, mounted as a child of `Tweaks`, because the debounce and the wait for Mod Options are both
+timers and a timer needs a tree. `mount()` rather than `_ready()`, so the order of load, config
+creation, signal wiring and the Mod Options bridge is written down rather than left to when the
+parent happened to add the child.
+
+The two signals are one distinction: `changed` is every edit, which is what a screen follows;
+`persisted` is at most one per 0.4 s window, which is why it is the one the summary is logged from.
+A slider drag emits a value per step and would otherwise be a line in the log and a file write each.
+
+`set_setting()` is the single write path — the mod's own tab and Mod Options both end there — and it
+accepts only keys the schema declared. `get_schema_properties()` reads the *default* config's schema
+rather than the loaded one, because ModLoader regenerates that from the manifest on every boot: it
+is the newer of the two whenever the mod has been updated under an existing `user.json`.
+
+**Settings live in the mod's own named config, and it is created eagerly.** ModLoader regenerates
+`default.json` from the manifest schema on effectively every boot, so a player editing that file by
+hand loses the edit on the next launch. `_ensure_user_config()` therefore creates `user.json`,
+seeded with the schema defaults, on the mod's first run — so there is always a file that survives.
+
+Reading it back cannot rely on `get_current_config()`, which answers entirely from
+`mod_user_profiles.json`: a profile written while the mod was not yet valid carries no entry, and
+then the file the player has been editing is invisible. So `_load_settings()` tries, in order, the
+profile's current config, then `user.json` by name out of `get_configs()` (which ModLoader
+populates from disk at boot regardless of the profile), then the schema defaults.
+
+Making the config current is a profile write — `ModData.current_config` has a setter that reaches
+into `mod_user_profiles.json` — and that setter dereferences the current profile with no null
+check. So it is guarded on a profile existing, and skipping it costs nothing because the read path
+above finds the file by name anyway.
+
+### `core/tweaks_lookup.gd`
+
+```gdscript
+static func find(node)                                  # the Tweaks node, or null
+static func cached(node, current)                       # the same, reusing one already found
+```
+
+Rule 6 of "Rules every adapter follows", in one place instead of thirteen. Nothing found means the
+mod is not mounted yet, and every adapter reads that as "do nothing and let vanilla stand".
+
+`cached()` returns what the caller should store, because a static function cannot write to the
+caller's field:
+
+```gdscript
+func _tweaks():
+    _tweaks_node = TweaksLookup.cached(self, _tweaks_node)
+    return _tweaks_node
+```
+
+Four adapters use that shape, for two different reasons. `singletons/run_data.gd` and
+`global/entity_spawner.gd` ask on a hot path, where walking the tree per call is far too much.
+`ui/menus/shop/base_shop.gd` asks from `_on_tree_exited()`, where the node has already left the tree
+and `find()` cannot answer at all — so it looks `Tweaks` up while the screen is being built and keeps
+it for the one call that comes after.
+
+The adapters reach this by `preload()` of an absolute `res://mods-unpacked/…` path, which is the
+same shape `ui/options_tab.gd` is loaded by. It is a *mod* path, so rule 5 — never preload a vanilla
+path — is untouched. It is also why `tests/run_extensions.sh` stages `core/` back into the
+decompiled tree for its second pass: a preload is resolved at parse time, and without the file there
+every adapter fails to compile for a reason that has nothing to do with vanilla.
+
 ### `core/loadout.gd`
 
 ```gdscript
@@ -397,7 +484,8 @@ func report_harvesting_kept(value: int) -> void
 func keep_piggy_bank() -> bool
 func report_piggy_bank(player_index: int, value: int) -> void
 
-func get_setting(key: String, default = null)
+func get_setting(key: String, default = null)          # these six are core/settings_store.gd
+func get_settings() -> Dictionary                      # answering; see below
 func set_setting(key: String, value) -> void
 func reset_to_defaults() -> void
 func get_schema_properties() -> Dictionary
@@ -421,28 +509,11 @@ one of. An adapter that gets it calls the vanilla method it was wrapping and lea
 value alone, rather than substituting a default of its own — which is what makes turning the weapon
 limit off mid-run give the character's real slot count back, untouched.
 
-`set_setting()` is the single write path — the mod's own tab and Mod Options both end there — and
-it accepts only keys the schema declared. It saves through the same 0.4 s debounce either way, and
-emits `settings_changed` at once, so a screen follows a change it did not make itself.
-`get_schema_properties()` reads the *default* config's schema rather than the loaded one, because
-ModLoader regenerates that from the manifest on every boot: it is the newer of the two whenever the
-mod has been updated under an existing `user.json`.
-
-**Settings live in the mod's own named config, and it is created eagerly.** ModLoader regenerates
-`default.json` from the manifest schema on effectively every boot, so a player editing that file by
-hand loses the edit on the next launch. `_ensure_user_config()` therefore creates `user.json`,
-seeded with the schema defaults, on the mod's first run — so there is always a file that survives.
-
-Reading it back cannot rely on `get_current_config()`, which answers entirely from
-`mod_user_profiles.json`: a profile written while the mod was not yet valid carries no entry, and
-then the file the player has been editing is invisible. So `_load_settings()` tries, in order, the
-profile's current config, then `user.json` by name out of `get_configs()` (which ModLoader
-populates from disk at boot regardless of the profile), then the schema defaults.
-
-Making the config current is a profile write — `ModData.current_config` has a setter that reaches
-into `mod_user_profiles.json` — and that setter dereferences the current profile with no null
-check. So it is guarded on a profile existing, and skipping it costs nothing because the read path
-above finds the file by name anyway.
+**The last six are delegated.** `tweaks.gd` answers questions about the game; where a value is kept,
+which ModLoader config it came out of and when it reaches disk are `core/settings_store.gd`'s, and
+the adapters and the settings screen are not told the difference. What stays here is the part that
+needs `feature_enabled()`: the store says *what changed*, and `tweaks.gd` writes the summary line,
+because only it knows which features are on and which have switched themselves off.
 
 ## Extension points
 
@@ -487,8 +558,9 @@ Rules every adapter follows:
 4. Only ever *add* an option. The retry adapter makes a hidden container visible; it never hides
    the vanilla prompt, so a player who turned the vanilla retry on themselves keeps it.
 5. No `preload()` of vanilla paths, ever — it silently defeats extensions.
-6. Reach `Tweaks` through `get_tree().get_nodes_in_group("brotato_tweaks")`, never a node path.
-   Nothing found means the mod is not mounted yet, and the adapter does nothing.
+6. Reach `Tweaks` through `core/tweaks_lookup.gd` — the group, never a node path. Nothing found
+   means the mod is not mounted yet, and the adapter does nothing. `find()` for most; `cached()`
+   for the four that ask on a hot path or after leaving the tree.
 
 ## Settings
 
@@ -660,6 +732,13 @@ So `Tweaks` connects to `setting_changed` itself and does the saving, through th
 | `tests/run.sh` | Every mod script outside `extensions/` compiles; the pure cores behave, including the shared-resource case; and the settings tab is built for real against a stub of `slider_option.tscn` and read back — which widget each row reached, that a value reads as the mod formats it rather than as vanilla's percentage, that a sub-option hides with its feature, and that being told a value reports nothing back |
 | `tests/run_extensions.sh` | The real ModLoader accepts the manifest and installs all seventeen extensions; every adapter compiles against real vanilla source — which is what fails when a vanilla method is renamed or its signature changes, and what caught the un-inferrable `:=` in `extensions/main.gd` |
 | `tests/run_menu.sh` | The real title screen is built against real vanilla, the adapter mounts the tab, and the tab is switched to and left on screen for 40 frames — so the engine actually lays it out |
+| `tests/run_baseline.sh` | The three kinds of vanilla change that compile perfectly and are wrong anyway: a default argument on an overridden method, a vanilla method whose logic this mod copies, and a signal looked up by name. Recorded in `tests/vanilla_baseline.json` and re-recorded with `--update` |
+
+The fourth is there because the other three are all, in the end, the compiler. A game where
+`RunData.init_elites_spawn()` has a new default, where `ItemPopup._update_button_visibilities()` has
+gained a line, and where `enemy_respawned` has been renamed passes `run_extensions.sh` at 17/17 with
+the loader reporting success — and plays differently in three ways. `run_baseline.sh` is the harness
+that fails on that, and it names the copy and the reason rather than only the file.
 
 What is left to the game itself is a moved node, a scene that no longer has the child an adapter
 mounts against, and how a wave actually plays. That is why step 6 of "Adding a tweak" in

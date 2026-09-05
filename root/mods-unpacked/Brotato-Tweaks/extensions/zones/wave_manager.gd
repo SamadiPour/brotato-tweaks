@@ -30,7 +30,7 @@ extends "res://zones/wave_manager.gd"
 #
 # See docs/01-architecture.md ("Extension points").
 
-const TWEAKS_GROUP := "brotato_tweaks"
+const TweaksLookup = preload("res://mods-unpacked/Brotato-Tweaks/core/tweaks_lookup.gd")
 
 # The mod's own node, kept once found — `init()` runs once per wave, but the lookup walks the tree.
 var _tweaks_node = null
@@ -96,12 +96,5 @@ func _tweaks_add_bonus_bosses(tweaks, zone_data: ZoneData, wave_data: Resource) 
 
 
 func _tweaks():
-	if _tweaks_node != null and is_instance_valid(_tweaks_node):
-		return _tweaks_node
-	if not is_inside_tree():
-		return null
-	var found := get_tree().get_nodes_in_group(TWEAKS_GROUP)
-	if found.empty() or not is_instance_valid(found[0]):
-		return null
-	_tweaks_node = found[0]
+	_tweaks_node = TweaksLookup.cached(self, _tweaks_node)
 	return _tweaks_node

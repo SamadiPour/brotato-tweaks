@@ -42,7 +42,7 @@ extends "res://singletons/item_service.gd"
 #
 # See docs/01-architecture.md ("Extension points").
 
-const TWEAKS_GROUP := "brotato_tweaks"
+const TweaksLookup = preload("res://mods-unpacked/Brotato-Tweaks/core/tweaks_lookup.gd")
 
 
 func apply_item_effect_modifications(item: ItemParentData, player_index: int) -> ItemParentData:
@@ -83,9 +83,4 @@ func get_limited_items(from_items: Array) -> Dictionary:
 
 
 func _tweaks():
-	if not is_inside_tree():
-		return null
-	var found := get_tree().get_nodes_in_group(TWEAKS_GROUP)
-	if found.empty() or not is_instance_valid(found[0]):
-		return null
-	return found[0]
+	return TweaksLookup.find(self)
