@@ -3,17 +3,50 @@
 # folder. The version comes from manifest.json, so it is bumped in one place.
 #
 #   ./tools/build.sh                 # build the zip
-#   ./tools/build.sh --install       # build it, then copy it into the game's mods/ folder,
-#                                    # replacing any older zip of this mod that is there
+#   ./tools/build.sh --install       # build it, then copy it where this copy of the game reads
+#                                    # mods from, replacing any older zip of this mod there
 #
-# The game folder defaults to ~/Documents/Brotato and is overridden with BROTATO_DIR.
+# The game folder is the one holding Brotato.app or Brotato.exe — not the .app itself. It is
+# looked for in the usual places and overridden with BROTATO_DIR.
 set -euo pipefail
 
 readonly MOD_ID="Brotato-Tweaks"
 readonly REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 readonly MOD_DIR="$REPO_ROOT/root/mods-unpacked/$MOD_ID"
 readonly DIST_DIR="$REPO_ROOT/dist"
-BROTATO_DIR="${BROTATO_DIR:-$HOME/Documents/Brotato}"
+readonly STEAM_APP_ID="1942280"
+BROTATO_DIR="${BROTATO_DIR:-}"
+
+# Where the game folders usually are, tried in this order when BROTATO_DIR is unset.
+readonly GAME_DIR_CANDIDATES=(
+	"$HOME/Documents/Brotato"
+	"$HOME/Library/Application Support/Steam/steamapps/common/Brotato"
+	"$HOME/.steam/steam/steamapps/common/Brotato"
+	"$HOME/.local/share/Steam/steamapps/common/Brotato"
+	"$HOME/Games/Brotato"
+)
+
+# The game itself, rather than a folder that happens to be named after it. macOS ships a bundle,
+# the other platforms an executable beside Brotato.pck.
+is_game_dir() {
+	[ -d "$1/Brotato.app" ] || [ -f "$1/Brotato.exe" ] || [ -f "$1/Brotato.pck" ] || [ -x "$1/Brotato" ]
+}
+
+# ModLoader reads mods from beside the executable — internal/path.gd's get_local_folder_dir("mods"),
+# which on macOS climbs out of the .app first. Steam builds are the exception: options.tres
+# overrides steam_workshop_enabled to true under the `steam` feature tag, and _load_mod_zips() then
+# reads *only* steamapps/workshop/content/<app id>, one folder per mod, never mods/.
+mods_target_for() {
+	local game_dir="${1%/}"
+	case "$game_dir" in
+		*/steamapps/common/*)
+			echo "${game_dir%/steamapps/common/*}/steamapps/workshop/content/$STEAM_APP_ID/$MOD_ID"
+			;;
+		*)
+			echo "$game_dir/mods"
+			;;
+	esac
+}
 
 install_after_build=false
 for arg in "$@"; do
@@ -46,12 +79,39 @@ echo "built dist/$zip_name"
 unzip -l "$zip_path" | tail -1
 
 if [ "$install_after_build" = true ]; then
-	mods_dir="$BROTATO_DIR/mods"
-	if [ ! -d "$mods_dir" ]; then
-		echo "no mods folder at $mods_dir - set BROTATO_DIR to your game folder" >&2
-		exit 1
+	game_dir="$BROTATO_DIR"
+	if [ -n "$game_dir" ]; then
+		if ! is_game_dir "$game_dir"; then
+			echo "no Brotato.app, Brotato.exe or Brotato.pck in BROTATO_DIR ($game_dir)" >&2
+			echo "point BROTATO_DIR at the folder holding the game, not at the .app" >&2
+			exit 1
+		fi
+	else
+		for candidate in "${GAME_DIR_CANDIDATES[@]}"; do
+			if is_game_dir "$candidate"; then
+				game_dir="$candidate"
+				break
+			fi
+		done
+		if [ -z "$game_dir" ]; then
+			echo "could not find the game - set BROTATO_DIR to the folder holding Brotato.app" >&2
+			printf '  looked in: %s\n' "${GAME_DIR_CANDIDATES[@]}" >&2
+			exit 1
+		fi
 	fi
-	# Two versions of the same mod id in mods/ confuse the loader, so clear the old one first.
+
+	mods_dir="$(mods_target_for "$game_dir")"
+	case "$mods_dir" in
+		*/workshop/content/*)
+			echo "$game_dir is a Steam copy, which loads mods from the workshop folder only"
+			;;
+	esac
+
+	# The folder is the game's to read, not to create, so it may well not be there yet - a copy
+	# that has never had a mod has no mods/, and a Steam copy with no subscriptions has no
+	# workshop folder for the app id.
+	mkdir -p "$mods_dir"
+	# Two versions of the same mod id confuse the loader, so clear the old one first.
 	rm -f "$mods_dir/$MOD_ID"-*.zip
 	cp "$zip_path" "$mods_dir/"
 	echo "installed to $mods_dir/$zip_name"

@@ -6,7 +6,7 @@
 |---|---|---|
 | Godot **3.x** editor binary | Both test harnesses run headless under it. The game is Godot 3.7; Godot 4 will not parse this code. | `/Applications/Godot3.app/Contents/MacOS/Godot`, override with `GODOT=` |
 | A decompiled copy of the game | `tests/run_extensions.sh` compiles the adapters against real vanilla source, and every claim in [00 — Research](00-research.md) was read from it | `~/Dev/BrotatoDecompiled`, override with `BROTATO_SRC=` |
-| Brotato itself | Only for actually playing the mod | `~/Documents/Brotato`, override with `BROTATO_DIR=` |
+| Brotato itself | Only for actually playing the mod | the usual install folders, `~/Documents/Brotato` first; override with `BROTATO_DIR=` |
 
 Scripts in the game's PCK are compiled `.gdc` bytecode behind `.gd.remap` files, so reading vanilla
 source means decompiling. [GDRE Tools](https://github.com/bruvzg/gdsdecomp) does it:
@@ -36,8 +36,16 @@ $ tests/run.sh                 # parse + core checks, ~10s
 $ tests/run_extensions.sh      # real loader + adapters against real vanilla, ~30s
 $ tests/run_menu.sh            # the settings tab, laid out on a real title screen, ~20s
 $ tests/run_baseline.sh        # what this mod believes about vanilla, ~15s
-$ tools/build.sh --install     # zip it and drop it in the game's mods/ folder
+$ tools/build.sh --install     # zip it and drop it where this copy of the game reads mods from
 ```
+
+`BROTATO_DIR` is the folder that *holds* `Brotato.app`, not the bundle. Where the zip lands is the
+game's decision, not a preference: ModLoader's `internal/path.gd` resolves `mods/` from the
+executable's own folder — climbing out of the `.app` on macOS — unless the copy is a Steam one.
+Steam builds carry the `steam` feature tag, `options.tres` overrides `steam_workshop_enabled` to
+`true` for it, and `mod_loader.gd:_load_mod_zips()` then reads
+`steamapps/workshop/content/1942280/` **instead of** `mods/`, one folder per mod, with no CLI
+override for that path. `--install` works both out, and says so when it picks the Workshop.
 
 Run `run_menu.sh` after anything that touches `ui/`. It is the only harness where the engine lays
 the tab out, and a UI mistake in Godot 3 is often a segfault rather than an error — no message, no

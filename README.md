@@ -35,23 +35,24 @@ Each one, with its dials and what it does and does not touch, is in
 
 ## Install
 
-Download the zip from [Releases](https://github.com/SamadiPour/brotato-tweaks/releases) and drop it
-in Brotato's `mods` folder:
-
-| Platform | Folder |
+Download the zip from [Releases](https://github.com/SamadiPour/brotato-tweaks/releases) and drop
+it, still zipped, where your copy of the game reads mods from.
+| Your copy | Where the zip goes |
 |---|---|
-| macOS | `~/Documents/Brotato/mods/` |
-| Windows | `%USERPROFILE%\Documents\Brotato\mods\` |
-| Linux | `~/.local/share/Brotato/mods/` (or beside the game) |
+| GOG, Epic, itch — Windows, Linux | `mods/` in the game folder, beside `Brotato.exe` |
+| GOG, Epic, itch — macOS | `mods/` in the folder that *contains* `Brotato.app`, not inside the bundle |
+| **Steam — every platform** | **`steamapps/workshop/content/1942280/<any folder>/`** |
 
-ModLoader ships inside the game — no patched executable, no separate install. Start the game and
-the Tweaks tab is in Options.
 
 To build it yourself:
 
 ```console
-$ tools/build.sh --install     # zip it and copy it into the game's mods/ folder
+$ tools/build.sh --install     # zip it and copy it where this copy of the game reads mods from
 ```
+
+`--install` finds the game in the usual places — override with `BROTATO_DIR=`, pointing it at the
+folder that holds `Brotato.app` or `Brotato.exe` — and picks `mods/` or the Workshop folder for
+you, so the same command works on a Steam copy and a non-Steam one.
 
 Built for **Brotato 1.1.15** with ModLoader **6.3.0**. The Abyssal Terrors DLC is optional; the two
 curse tweaks are the only ones that need it.
