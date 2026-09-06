@@ -451,7 +451,9 @@ func _bad(message: String) -> void:
 GDSCRIPT
 
 # macOS has no `timeout`, and a parse error can leave the engine idling in the main loop.
-HOME="$SANDBOX_HOME" "$GODOT" --no-window --path "$BROTATO_SRC" -s res://tweaks_baseline_check.gd \
+# `--audio-driver Dummy`: this boots the real game, and `--no-window` is only the window.
+HOME="$SANDBOX_HOME" "$GODOT" --no-window --audio-driver Dummy \
+	--path "$BROTATO_SRC" -s res://tweaks_baseline_check.gd \
 	-- --repo "$REPO_ROOT" $UPDATE > "$LOG" 2>&1 &
 pid=$!
 waited=0

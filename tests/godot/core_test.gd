@@ -15,9 +15,14 @@ const Loadout := preload("res://mods-unpacked/Brotato-Tweaks/core/loadout.gd")
 const Recycling := preload("res://mods-unpacked/Brotato-Tweaks/core/recycling.gd")
 const ItemLimits := preload("res://mods-unpacked/Brotato-Tweaks/core/item_limits.gd")
 const SettingsLayout := preload("res://mods-unpacked/Brotato-Tweaks/core/settings_layout.gd")
+const SettingsStore := preload("res://mods-unpacked/Brotato-Tweaks/core/settings_store.gd")
 const Curse := preload("res://mods-unpacked/Brotato-Tweaks/core/curse.gd")
 const Fake := preload("res://stubs/fake_wave.gd")
+const FakeWaveData := preload("res://stubs/fake_wave_data.gd")
 const FakePlayer := preload("res://stubs/fake_player.gd")
+
+# The mod id the store filters `current_config_changed` on and asks ModLoader for its configs by.
+const MOD_ID := "Brotato-Tweaks"
 
 # A stand-in for the manifest's `config_schema.properties`, small enough to reason about and
 # deliberately not a copy of the real one: it carries a type the screen has no widget for, and a
@@ -31,6 +36,17 @@ const SCHEMA := {
 	"death_guard_enabled": {"type": "boolean", "title": "Death Guard", "default": false},
 	"palette": {"type": "string", "default": "#ffffff"},
 	"invented_later": {"type": "boolean", "title": "Invented later", "default": true},
+}
+
+# What ModLoader regenerates `default.json` from — the schema above, read as values. This is the
+# newest list of keys that exist, which is what makes it the thing a `user.json` is repaired
+# against.
+const STORE_DEFAULTS := {
+	"enemies_enabled": false,
+	"enemies_multiplier": 2,
+	"death_guard_enabled": false,
+	"palette": "#ffffff",
+	"invented_later": true,
 }
 
 const ENEMY := 1
@@ -55,6 +71,7 @@ func _ready() -> void:
 	_cursed_enemy_checks()
 	_recurse_checks()
 	_settings_layout_checks()
+	_settings_store_checks()
 	_settings_tab_checks()
 
 	print("---- ", _failures, " check(s) failed")
@@ -140,6 +157,19 @@ func _wave_scaling_checks() -> void:
 
 	var bare := WaveScaling.scale(Resource.new(), 3.0, true, ENEMY)
 	_check("survives a wave it does not recognise", not bare.ok and bare.reason != "")
+
+	# Half a wave: the cap is there and the plan is not. Both shapes have to be checked before
+	# either is written, because a report that is not ok switches the feature off for the rest of
+	# the session — and a cap raised on the way out would leave that wave running with three times
+	# its enemy limit and none of the enemies that were meant to fill it.
+	var half = FakeWaveData.new()
+	half.max_enemies = 100
+	# Not the array this mod expects — the shape a game patch that reworked WaveData would leave
+	# behind. `Resource.new()` above is the same branch without a cap to watch.
+	half.groups_data = null
+	var half_report := WaveScaling.scale(half, 3.0, true, ENEMY)
+	_check("a wave with no plan to scale keeps its own enemy cap",
+		not half_report.ok and half.max_enemies == 100)
 
 
 # --- the spawn queue's drain rate ----------------------------------------------------
@@ -627,6 +657,244 @@ func _recurse_checks() -> void:
 	# later roll of that item duplicates from.
 	_check("a roll that handed the original back is refused",
 		Curse.recurse(cursed, base, base) == cursed)
+
+
+# --- the settings store -------------------------------------------------------------------
+#
+# The one module in core/ that is not arithmetic. It answers two questions, and both are invisible
+# when they are wrong: which of three sources is the player's own choice, and which file a save is
+# allowed to go to. Getting either wrong is a setting that does not survive a restart, or a number
+# left in the file that makes ModLoader refuse every later save — neither of which throws.
+#
+# So it is driven rather than reasoned about, against the programmable ModLoaderConfig in
+# stubs/mod_loader_config.gd. It is a Node with timers, so each scenario mounts a fresh store as a
+# child of this one and drops it again; dropping it is also how the exit flush is checked.
+
+var _store_persisted := 0
+
+
+func _settings_store_checks() -> void:
+	_store_nothing_configured_checks()
+	_store_source_checks()
+	_store_repair_checks()
+	_store_write_checks()
+	_store_external_config_checks()
+	_store_reset_checks()
+	_store_world_reset()
+
+
+# Nothing on disk and nothing in the profile. The mod has to run, with every tweak off, and must
+# not invent a file out of settings it does not have.
+func _store_nothing_configured_checks() -> void:
+	_store_world_reset()
+	var bare = _mount_store()
+	_check("no config at all leaves the store empty", bare.settings.empty())
+	_check("a missing config still answers with the caller's own default",
+		bare.get_setting("enemies_enabled", false) == false
+		and bare.get_setting("enemies_multiplier", 7) == 7)
+	_check("nothing is created out of nothing", ModLoaderConfig.created().empty())
+	_drop_store(bare)
+
+
+# Which of the three sources wins. The order is the whole of `_load_settings()`.
+func _store_source_checks() -> void:
+	# A first launch: only the file ModLoader regenerates from the manifest exists. It is what the
+	# mod runs on, and the mod then makes itself one that a restart will not overwrite.
+	_store_world_reset()
+	_seed_default_config()
+	var fresh = _mount_store()
+	_check("a first launch runs on the schema defaults",
+		fresh.get_setting("enemies_multiplier", 0) == 2)
+	_check("a first launch creates the config that survives a restart",
+		ModLoaderConfig.created() == ["user"])
+	_check("with no profile, nothing is written into the profile",
+		ModLoaderConfig.made_current().empty())
+	_drop_store(fresh)
+
+	# The case the profile knows nothing about: someone edited `user.json` by hand, and
+	# `get_current_config()` answers null because the profile has no entry for this mod.
+	_store_world_reset()
+	_seed_default_config()
+	_seed_user_config({"enemies_multiplier": 6})
+	var hand_edited = _mount_store()
+	_check("a hand-edited user.json is found without the profile remembering it",
+		hand_edited.get_setting("enemies_multiplier", 0) == 6)
+	_check("finding user.json is not creating it", ModLoaderConfig.created().empty())
+	_drop_store(hand_edited)
+
+	# The profile points at `default.json`. Reading that would look like it worked and be gone on
+	# the next boot, so `user.json` wins over it.
+	_store_world_reset()
+	_seed_default_config()
+	_seed_user_config({"enemies_multiplier": 6})
+	ModLoaderConfig.seed_current(ModLoaderConfig.default_config())
+	var over_default = _mount_store()
+	_check("the file the loader regenerates never wins over user.json",
+		over_default.get_setting("enemies_multiplier", 0) == 6)
+	_drop_store(over_default)
+
+	# With a profile, making the config current is a real write and is worth doing. Without one it
+	# is an engine error, which is the check above.
+	_store_world_reset()
+	_seed_default_config()
+	ModLoaderStore.current_user_profile = "a profile"
+	var with_profile = _mount_store()
+	_check("with a profile, the new config is made the profile's current one",
+		ModLoaderConfig.made_current().size() == 1)
+	_drop_store(with_profile)
+	ModLoaderStore.current_user_profile = null
+
+
+# `_fill_missing_keys()`: what a `user.json` older than the schema is repaired into. All three
+# repairs are silent failures otherwise — a missing key is an index error on the Mod Options
+# screen, and one number out of range makes ModLoader reject every later save of the whole file.
+func _store_repair_checks() -> void:
+	_store_world_reset()
+	_seed_default_config()
+	_seed_user_config({
+		"enemies_enabled": true,
+		"enemies_multiplier": 0,
+		"removed_setting": true,
+	})
+	var repaired = _mount_store()
+	_check("a key the schema gained is filled from its default",
+		repaired.settings.has("death_guard_enabled")
+		and repaired.get_setting("death_guard_enabled", true) == false)
+	_check("a key the schema dropped does not stay in the file",
+		not repaired.settings.has("removed_setting"))
+	_check("a number the schema no longer allows is clamped back into range",
+		is_equal_approx(float(repaired.get_setting("enemies_multiplier", 0)), 1.0))
+	_check("a value that is not a number is left alone",
+		str(repaired.get_setting("palette", "")) == "#ffffff")
+	_check("the player's own value is not a repair", repaired.get_setting("enemies_enabled", false))
+	_check("the repair is written back rather than done again every boot",
+		not ModLoaderConfig.updated().empty())
+	_check("a repair with no profile does not touch the profile",
+		ModLoaderConfig.made_current().empty())
+	_drop_store(repaired)
+
+
+# What `set_setting()` accepts, when it reaches disk, and which file it reaches.
+func _store_write_checks() -> void:
+	_store_world_reset()
+	_seed_default_config()
+	ModLoaderConfig.seed_current(ModLoaderConfig.default_config())
+	var writing = _mount_store()
+	ModLoaderConfig.forget_history()
+	_store_persisted = 0
+	writing.connect("persisted", self, "_on_store_persisted")
+
+	writing.set_setting("not_a_setting", true)
+	_check("a key the schema never declared is not accepted",
+		not writing.settings.has("not_a_setting"))
+
+	writing.set_setting("enemies_enabled", false)
+	_check("writing the value it already holds is not a write",
+		ModLoaderConfig.updated().empty())
+
+	writing.set_setting("enemies_enabled", true)
+	_check("a slider step is held back for the debounce window",
+		ModLoaderConfig.updated().empty() and _store_persisted == 0)
+	_check("but the new value is readable at once", writing.get_setting("enemies_enabled", false))
+
+	# The window is 0.4s. Quitting inside it used to lose the change, which is the one a player
+	# came to the menu for.
+	_drop_store(writing)
+	_check("a save still owed when the tree goes is written, not dropped",
+		_store_persisted == 1 and not ModLoaderConfig.updated().empty())
+	_check("the save went to user.json and not to the file the loader regenerates",
+		str(ModLoaderConfig.updated()[0].name) == "user")
+
+
+# `current_config_changed`: ModLoader saved a config for this mod from somewhere this store did
+# not write — a profile switch, the loader's own UI, another mod. It is already on disk, and it is
+# as old as the file it came out of.
+func _store_external_config_checks() -> void:
+	_store_world_reset()
+	_seed_default_config()
+	var listening = _mount_store()
+	ModLoaderConfig.forget_history()
+
+	ModLoader.emit_signal("current_config_changed", ModLoaderConfig.make_config(
+		"user", "Some-Other-Mod", {"enemies_multiplier": 9}))
+	_check("another mod's config is not this mod's settings",
+		is_equal_approx(float(listening.get_setting("enemies_multiplier", 0)), 2.0))
+
+	ModLoader.emit_signal("current_config_changed", ModLoaderConfig.make_config("user", MOD_ID, {
+		"enemies_enabled": true,
+		"enemies_multiplier": 99,
+		"removed_setting": true,
+	}))
+	_check("a config arriving from the loader is taken",
+		listening.get_setting("enemies_enabled", false))
+	_check("a config arriving from the loader is repaired like any other",
+		is_equal_approx(float(listening.get_setting("enemies_multiplier", 0)), 10.0)
+		and listening.settings.has("death_guard_enabled")
+		and not listening.settings.has("removed_setting"))
+	_drop_store(listening)
+
+
+func _store_reset_checks() -> void:
+	# Nothing to reset to. The caller must not announce a reset that did not happen.
+	_store_world_reset()
+	var no_defaults = _mount_store()
+	_check("a reset with no default config says it did nothing",
+		not no_defaults.reset_to_defaults())
+	_drop_store(no_defaults)
+
+	_store_world_reset()
+	_seed_default_config()
+	var resettable = _mount_store()
+	resettable.set_setting("enemies_multiplier", 7)
+	ModLoaderConfig.forget_history()
+	_check("a reset puts the schema defaults back", resettable.reset_to_defaults()
+		and is_equal_approx(float(resettable.get_setting("enemies_multiplier", 0)), 2.0))
+	_check("a reset is one press, not a drag, so it is saved at once",
+		ModLoaderConfig.updated().size() == 1)
+
+	# The debounced save from the slider above is now stale: the file already has the defaults.
+	ModLoaderConfig.forget_history()
+	_drop_store(resettable)
+	_check("a reset drops the queued save it replaced", ModLoaderConfig.updated().empty())
+
+
+# --- driving the store --------------------------------------------------------------------
+
+# Back to "nothing configured", which is what every check outside this section expects to find.
+func _store_world_reset() -> void:
+	ModLoaderConfig.reset()
+	ModLoaderStore.current_user_profile = null
+
+
+func _seed_default_config() -> void:
+	ModLoaderConfig.seed_default(ModLoaderConfig.make_config(
+		"default", MOD_ID, STORE_DEFAULTS, {"description": "Tweaks", "properties": SCHEMA}))
+
+
+# A `user.json` holding exactly `data` — not the defaults with `data` merged in, because the point
+# of most of these is a file written by a version whose keys were not this version's.
+func _seed_user_config(data: Dictionary) -> void:
+	ModLoaderConfig.seed_config(ModLoaderConfig.make_config("user", MOD_ID, data))
+
+
+func _mount_store():
+	var store = SettingsStore.new()
+	store.name = "SettingsStore"
+	add_child(store)
+	store.mount()
+	return store
+
+
+# `free()` rather than `queue_free()`: the store connects to `ModLoader.current_config_changed` and
+# to the tree's `node_added`, and the next scenario mounts another one in the same frame.
+# `remove_child()` is what fires `_exit_tree()`, which is where the flush is.
+func _drop_store(store) -> void:
+	remove_child(store)
+	store.free()
+
+
+func _on_store_persisted(_settings) -> void:
+	_store_persisted += 1
 
 
 # --- the settings tab ---------------------------------------------------------------------

@@ -130,7 +130,7 @@ resource paths that a patch can move, and an icon would carry a `.import` folder
 |---|---|
 | `mod_main._init()` | Install the seventeen script extensions. Nothing else — the game is barely alive here. Four of them are the shop, three of which inherit from the fourth; ModLoader sorts every queued extension by its inheritance chain, so the order they are listed in is not load-bearing. |
 | `mod_main._ready()` | Add the `Tweaks` node, which adds its `SettingsStore` child and calls `mount()` on it: read the config, create `user.json` if it is not there yet, wire the ModLoader and Mod Options signals, start the save debounce. Then log which tweaks are on. No game content is read. |
-| Config changed | `ModLoader.current_config_changed` → re-read settings and log the new summary. Every tweak reads its setting at the moment it acts, so changes take effect on the next wave, the next pickup, the next death. |
+| Config changed | `ModLoader.current_config_changed` → re-read settings, repair them against the schema the way `mount()` does, and log the new summary. Every tweak reads its setting at the moment it acts, so changes take effect on the next wave, the next pickup, the next death. |
 | The title screen or the pause menu is built | Its adapter calls `OptionsTab.attach()`, which appends the mod's tab to the Options menu's `UIBetterTabContainer`. See "The settings tab" below. |
 | A widget on the mod's own tab moves | `TweaksTab.setting_changed` → `Tweaks.set_setting()` → `SettingsStore.set_setting()`, which saves `user.json` (debounced) and emits `changed`. `Tweaks` re-emits that as `settings_changed`, which is what hides or shows the sub-options below a toggle. |
 | A widget on the Mod Options screen moves | `ModsConfigInterface.setting_changed` → the same `set_setting()`. See "Brotato Mod Options" below. |
@@ -287,6 +287,7 @@ func mount() -> void                                    # called by Tweaks, once
 func get_setting(key: String, default = null)
 func set_setting(key: String, value) -> void
 func reset_to_defaults() -> bool                        # false = nothing was done
+func flush_pending_save() -> void                       # write a debounced save now
 func get_schema_properties() -> Dictionary
 func schema_description() -> String
 var settings: Dictionary
@@ -302,6 +303,10 @@ parent happened to add the child.
 The two signals are one distinction: `changed` is every edit, which is what a screen follows;
 `persisted` is at most one per 0.4 s window, which is why it is the one the summary is logged from.
 A slider drag emits a value per step and would otherwise be a line in the log and a file write each.
+
+The window is short but it is not zero, and the change a player makes last is the one they came to
+the menu for. `_exit_tree()` flushes a save still owed, so quitting from the pause menu's own
+options screen writes it rather than dropping it.
 
 `set_setting()` is the single write path — the mod's own tab and Mod Options both end there — and it
 accepts only keys the schema declared. `get_schema_properties()` reads the *default* config's schema
@@ -322,7 +327,17 @@ populates from disk at boot regardless of the profile), then the schema defaults
 Making the config current is a profile write — `ModData.current_config` has a setter that reaches
 into `mod_user_profiles.json` — and that setter dereferences the current profile with no null
 check. So it is guarded on a profile existing, and skipping it costs nothing because the read path
-above finds the file by name anyway.
+above finds the file by name anyway. Every route to it goes through `_make_current()`, saving
+included: the branch that saves into a `user.json` the profile does not know about is exactly the
+one a player with no profile entry takes.
+
+A config read back is repaired before it is used, on both routes in — `mount()` and
+`current_config_changed`. A `user.json` older than the schema is missing keys the schema has since
+gained, which is an index error on the Mod Options screen rather than a default, and it can hold a
+number a later version narrowed the range on — and ModLoader validates the *whole* config on every
+save, so one of those makes every later write fail silently. `_fill_missing_keys()` fills what is
+missing, drops what the schema no longer declares, and clamps the numbers back into range, once,
+on the way in.
 
 ### `core/tweaks_lookup.gd`
 

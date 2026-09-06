@@ -63,17 +63,21 @@ static func scale(wave_data, multiplier: float, raise_cap: bool, enemy_type: int
 		result.reason = "multiplier is 1"
 		return result
 
-	if raise_cap:
-		if not ("max_enemies" in wave_data):
-			result.reason = "WaveData has no max_enemies"
-			return result
-		result.cap_before = int(wave_data.max_enemies)
-		wave_data.max_enemies = int(round(result.cap_before * factor))
-		result.cap_after = int(wave_data.max_enemies)
-
+	# Both shapes are checked before either is written. A failure here switches the feature off for
+	# the rest of the session, and a cap raised on the way to that failure would be a wave running
+	# with five times its enemy limit and none of the enemies that were supposed to fill it — the
+	# one combination that is worse than doing nothing.
 	if not ("groups_data" in wave_data) or not (wave_data.groups_data is Array):
 		result.reason = "WaveData has no groups_data array"
 		return result
+	if raise_cap and not ("max_enemies" in wave_data):
+		result.reason = "WaveData has no max_enemies"
+		return result
+
+	if raise_cap:
+		result.cap_before = int(wave_data.max_enemies)
+		wave_data.max_enemies = int(round(result.cap_before * factor))
+		result.cap_after = int(wave_data.max_enemies)
 
 	var groups: Array = wave_data.groups_data
 	for i in groups.size():

@@ -79,7 +79,9 @@ fi
 # macOS has no `timeout`, and a parse error can leave the engine idling in the main loop.
 run_godot() {
 	local sandbox_home="$1" log="$2"
-	HOME="$sandbox_home" "$GODOT" --no-window --path "$BROTATO_SRC" -s res://tweaks_check.gd > "$log" 2>&1 &
+	# `--audio-driver Dummy`: this boots the real game, and `--no-window` is only the window.
+	HOME="$sandbox_home" "$GODOT" --no-window --audio-driver Dummy \
+		--path "$BROTATO_SRC" -s res://tweaks_check.gd > "$log" 2>&1 &
 	local pid=$!
 	local waited=0
 	while kill -0 "$pid" 2>/dev/null; do

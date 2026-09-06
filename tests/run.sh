@@ -30,7 +30,7 @@ trap 'rm -f "$HARNESS/mods-unpacked" "$PARSE_LOG" "$CORE_LOG"' EXIT
 run_godot() {
 	local log="$1"
 	shift
-	"$GODOT" --no-window --path "$HARNESS" "$@" > "$log" 2>&1 &
+	"$GODOT" --no-window --audio-driver Dummy --path "$HARNESS" "$@" > "$log" 2>&1 &
 	local pid=$!
 	local waited=0
 	while kill -0 "$pid" 2>/dev/null; do

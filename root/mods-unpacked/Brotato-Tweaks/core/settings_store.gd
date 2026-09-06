@@ -61,6 +61,14 @@ var _mod_options = null
 
 var _save_timer: Timer = null
 
+# Whether a debounced save is still owed. Kept here rather than read back off the timer, because
+# `_exit_tree()` flushes and a timer's own state is not something to rely on while the tree is
+# being torn down around it.
+var _save_pending := false
+
+# Guards `_on_current_config_changed()` against its own writes — see there.
+var _applying_config := false
+
 
 # Called by `Tweaks` once this node is in the tree. Not `_ready()`, so the order of what follows is
 # stated here rather than left to when the parent happened to add the child.
@@ -104,6 +112,9 @@ func reset_to_defaults() -> bool:
 		return false
 
 	settings = defaults.data.duplicate(true)
+	# The file is about to get the whole dictionary, so a slider moved a moment ago has nothing
+	# left to contribute — and a debounce left running would write these same defaults again.
+	_cancel_queued_save()
 	_persist_settings()
 	emit_signal("changed", settings)
 	return true
@@ -142,19 +153,24 @@ func _persist_settings() -> void:
 		_update_config(config)
 		return
 
+	# `_make_current()` and not `set_current_config()` directly, in both branches below. Making a
+	# config current is a write into `mod_user_profiles.json`, and doing it without a profile is an
+	# engine error rather than a no-op — see `_make_current()`. Both of these run on the path a
+	# hand-edited `user.json` takes, which is exactly the path `_load_settings()` supports for a
+	# player whose profile has no entry for this mod.
 	var existing = ModLoaderConfig.get_configs(MOD_ID)
 	if existing.has(USER_CONFIG_NAME):
 		var user_config = existing[USER_CONFIG_NAME]
 		user_config.data = settings.duplicate(true)
 		_update_config(user_config)
-		ModLoaderConfig.set_current_config(user_config)
+		_make_current(user_config)
 		return
 
 	var created = ModLoaderConfig.create_config(MOD_ID, USER_CONFIG_NAME, settings.duplicate(true))
 	if created == null:
 		Logger.warning("could not save settings - the '%s' config was rejected" % USER_CONFIG_NAME)
 		return
-	ModLoaderConfig.set_current_config(created)
+	_make_current(created)
 
 
 # `update_config()` validates against the schema and returns null without saving when a value does
@@ -377,23 +393,69 @@ func _start_save_timer() -> void:
 
 
 func _queue_save() -> void:
+	_save_pending = true
 	if _save_timer == null:
-		_persist_settings()
-		emit_signal("persisted", settings)
+		_save_now()
 		return
 	_save_timer.start(SAVE_DEBOUNCE_SECONDS)
 
 
 func _on_save_timer_timeout() -> void:
+	_save_now()
+
+
+func _save_now() -> void:
+	_cancel_queued_save()
 	_persist_settings()
 	emit_signal("persisted", settings)
 
 
-# ModLoader saved a config for this mod from somewhere other than `set_setting()`. It is already on
-# disk, so there is nothing to queue — only the new values to take and to pass on.
+# The debounce window is short, but it is not zero, and the change a player makes last is the one
+# they came to the menu for. A save still owed when this node leaves the tree — the game quitting
+# from the pause menu's own options screen, the mod being unloaded — is written now rather than
+# dropped. `_exit_tree()` covers the window-close path too: the tree is torn down either way.
+func _exit_tree() -> void:
+	flush_pending_save()
+
+
+# Writes a queued save at once. Does nothing when nothing is owed, so it is safe to call from
+# anywhere and safe to call twice.
+func flush_pending_save() -> void:
+	if _save_pending:
+		_save_now()
+
+
+# Drops a queued save without writing it, for `reset_to_defaults()`, which is about to write the
+# whole dictionary itself.
+func _cancel_queued_save() -> void:
+	_save_pending = false
+	if _save_timer != null:
+		_save_timer.stop()
+
+
+# ModLoader saved a config for this mod from somewhere other than `set_setting()` — a profile
+# switch, another mod, a config made in the loader's own UI. It is already on disk, so there is
+# nothing to queue.
+#
+# The values still go through `_fill_missing_keys()`, for the same two reasons `mount()` does:
+# whatever arrives here is as old as the file it came out of, a key it does not carry is an index
+# error on the Mod Options screen rather than a default, and one number outside a range this
+# version narrowed makes ModLoader reject every later save. A config newer than the schema is the
+# normal case and costs one pass over the keys.
+#
+# `_fill_missing_keys()` can save, and a save can be what emits this signal, so the guard: the
+# second pass would find nothing to repair anyway, and this says so rather than relying on it.
 func _on_current_config_changed(config) -> void:
 	if config == null or str(config.mod_id) != MOD_ID:
 		return
+	if _applying_config:
+		return
+
+	_applying_config = true
 	settings = config.data.duplicate(true)
+	_loaded_config = config
+	_fill_missing_keys()
+	_applying_config = false
+
 	emit_signal("changed", settings)
 	emit_signal("persisted", settings)

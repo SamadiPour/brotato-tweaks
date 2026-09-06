@@ -187,7 +187,11 @@ func _check(name: String, passed: bool) -> void:
 GDSCRIPT
 
 # macOS has no `timeout`, and a crash leaves no exit of its own to wait on politely.
-HOME="$SANDBOX_HOME" "$GODOT" --no-window --path "$BROTATO_SRC" -s res://tweaks_menu_check.gd \
+#
+# `--audio-driver Dummy` because `--no-window` is only the window: the title screen this boots is
+# the real one, and it starts the menu music on the machine of whoever is running the checks.
+HOME="$SANDBOX_HOME" "$GODOT" --no-window --audio-driver Dummy \
+	--path "$BROTATO_SRC" -s res://tweaks_menu_check.gd \
 	> "$LOG" 2>&1 &
 pid=$!
 waited=0
